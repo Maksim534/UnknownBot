@@ -60,3 +60,8 @@ def back_to_main_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
     ])
+
+def back_to_admin_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад в админку", callback_data="admin_panel")]
+    ])
