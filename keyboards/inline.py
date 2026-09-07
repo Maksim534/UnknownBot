@@ -13,10 +13,10 @@ def main_menu_keyboard():
 def cases_menu_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎁 Ежедневный кейс (бесплатно)", callback_data="daily_case")],
-        [InlineKeyboardButton(text="📦 Обычный кейс 100 монет", callback_data="normal_case")],
-        [InlineKeyboardButton(text="🔴 Редкий кейс 8.000 монет", callback_data="rare_case")],
-        [InlineKeyboardButton(text="🟣 Мифический кейс 60.000 монет", callback_data="mythic_case")],
-        [InlineKeyboardButton(text="🌟 Ультра-легендарный кейс 2.000.000 монет", callback_data="ultra_case")],
+        [InlineKeyboardButton(text="📦 Обычный кейс (100 монет)", callback_data="normal_case")],
+        [InlineKeyboardButton(text="🔴 Редкий кейс (8 000 монет)", callback_data="rare_case")],
+        [InlineKeyboardButton(text="🟣 Мифический кейс (60 000 монет)", callback_data="mythic_case")],
+        [InlineKeyboardButton(text="🌟 Ультра-легендарный кейс (2 000 000 монет)", callback_data="ultra_case")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
     ])
 
@@ -35,7 +35,6 @@ def admin_menu_keyboard():
         [InlineKeyboardButton(text="🔙 Выход", callback_data="admin_exit")]
     ])
 
-
 def event_management_keyboard(events):
     kb = []
     for ev in events:
@@ -49,12 +48,7 @@ def event_management_keyboard(events):
 
 def back_to_cases_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="cases_menu")]
-    ])
-
-def back_to_rarity_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_rarity")]
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_cases")]
     ])
 
 def back_to_main_keyboard():
@@ -62,7 +56,11 @@ def back_to_main_keyboard():
         [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
     ])
 
-def back_to_admin_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Назад в админку", callback_data="admin_panel")]
-    ])
+# ===== НОВАЯ ФУНКЦИЯ ДЛЯ РЕЗУЛЬТАТА ОТКРЫТИЯ КЕЙСА =====
+def case_result_keyboard(case_type: str, price: int, is_daily: bool = False):
+    kb = []
+    if not is_daily:
+        spin_callback = f"spin_again_{case_type}_{price}"
+        kb.append([InlineKeyboardButton(text="🎰 Крутить еще раз", callback_data=spin_callback)])
+    kb.append([InlineKeyboardButton(text="🔙 Назад к кейсам", callback_data="back_to_cases")])
+    return InlineKeyboardMarkup(inline_keyboard=kb)
