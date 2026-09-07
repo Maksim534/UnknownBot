@@ -1,11 +1,12 @@
 import asyncio
 import logging
 from bot import bot, dp
-from handlers import start, cases, profile, admin
+from handlers import start, cases, profile, admin, promo
 
 async def main():
     logging.basicConfig(level=logging.INFO)
     dp.include_router(start.router)
+    dp.include_router(promo.router)
     dp.include_router(cases.router)
     dp.include_router(profile.router)
     dp.include_router(admin.router)
