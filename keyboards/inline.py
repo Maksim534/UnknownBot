@@ -35,6 +35,7 @@ def admin_menu_keyboard():
         [InlineKeyboardButton(text="🔙 Выход", callback_data="admin_exit")]
     ])
 
+
 def event_management_keyboard(events):
     kb = []
     for ev in events:
