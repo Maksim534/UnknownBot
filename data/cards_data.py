@@ -12,7 +12,7 @@ cards = {
     },
     2: {
         "name": "Си-Си",
-        "rarity": "редкая",
+        "rarity": "обычная",
         "image_url": "https://i.ibb.co/3ZkyrB1/6f67f972e5bc635798336e2ab125cfa8.jpg",
         "sell_price": 200,
         "case_type": "обычный",
@@ -21,7 +21,7 @@ cards = {
     },
     3: {
         "name": "Рудеус Грейрат",
-        "rarity": "редкая",
+        "rarity": "обычная",
         "image_url": "https://i.ibb.co/Nnmt6Bx8/image.png",
         "sell_price": 200,
         "case_type": "обычный",
