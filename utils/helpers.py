@@ -5,12 +5,12 @@ async def process_case_open(user_id, card, callback):
     if user_card:
         compensation = int(card.sell_price * 0.2)
         await update_balance(user_id, compensation)
-        await callback.message.answer(
+        caption = (
             f"🔄 <b>Дубликат!</b>\n\n"
             f"Тебе выпала карта <b>{card.name}</b>, которая уже у тебя есть.\n"
-            f"Ты получил компенсацию: <b>{compensation} монет</b> (20% от стоимости).",
-            parse_mode="HTML"
+            f"Ты получил компенсацию: <b>{compensation} монет</b> (20% от стоимости)."
         )
+        await callback.message.answer_photo(photo=card.image_url, caption=caption, parse_mode="HTML")
     else:
         await add_card_to_user(user_id, card.id)
         caption = (
