@@ -45,3 +45,17 @@ class EventCaseCard(Base):
     id = Column(Integer, primary_key=True)
     event_id = Column(Integer, ForeignKey("event_cases.id"))
     card_id = Column(Integer, ForeignKey("cards.id"))
+
+class Promo(Base):
+    __tablename__ = "promo"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True)
+    summ = Column(Integer)
+    activ = Column(Integer)  # количество активаций
+    data = Column(String)   # например "users/balance"
+
+class PromoActiv(Base):
+    __tablename__ = "promo_activ"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer)
+    name = Column(String)
