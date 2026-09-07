@@ -30,6 +30,7 @@ def event_cases_keyboard(events):
 def admin_menu_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎯 Ивенты", callback_data="admin_events")],
+        [InlineKeyboardButton(text="🎟️ Промокоды", callback_data="admin_promo")],
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")],
         [InlineKeyboardButton(text="🔙 Выход", callback_data="admin_exit")]
     ])
