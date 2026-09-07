@@ -5,7 +5,6 @@ from keyboards.inline import back_to_cases_keyboard
 
 router = Router()
 
-# ===== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ =====
 def group_cards_by_rarity(cards):
     groups = {}
     for card, count in cards:
@@ -24,7 +23,7 @@ def rarity_selection_keyboard(cards):
     kb.append([InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")])
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
-def card_banner_keyboard(rarity, index, total):
+def card_banner_keyboard(rarity, index, total, card_id):
     kb = []
     nav = []
     if total > 1:
@@ -32,7 +31,10 @@ def card_banner_keyboard(rarity, index, total):
         nav.append(InlineKeyboardButton(text=f"{index+1}/{total}", callback_data="ignore"))
         nav.append(InlineKeyboardButton(text="▶️", callback_data=f"next_{rarity}_{index}"))
         kb.append(nav)
-    kb.append([InlineKeyboardButton(text="🔙 Назад", callback_data=f"back_to_rarity")])
+    kb.append([
+        InlineKeyboardButton(text="💰 Продать", callback_data=f"sell_card_{rarity}_{index}_{card_id}"),
+        InlineKeyboardButton(text="🔙 Назад", callback_data=f"back_to_rarity")
+    ])
     return InlineKeyboardMarkup(inline_keyboard=kb)
 
 @router.callback_query(F.data == "my_cards")
@@ -62,10 +64,11 @@ async def show_rarity(callback: types.CallbackQuery):
     if not filtered:
         await callback.answer("❌ У тебя нет карт этой редкости.", show_alert=True)
         return
-    # сохраняем список карт в кеш? проще хранить в callback.data, но мы будем использовать индекс и редкость
-    # Для простоты сохраняем в глобальную переменную? нет. Будем передавать индекс через callback.data.
-    # Но нам нужен полный список. Мы будем каждый раз запрашивать из БД и фильтровать.
-    # Это нормально для небольшого количества карт.
+
+    # Сохраняем список в кеш, чтобы не перезапрашивать при навигации
+    # Используем словарь в самом обработчике, но проще — в данных сообщения
+    # Вместо этого передаём индекс и редкость, а список получаем заново (но это дорого)
+    # Сделаем проще: будем передавать индекс через callback.data и каждый раз получать список
     await show_card(callback, filtered, 0, rarity)
 
 async def show_card(callback, filtered, index, rarity):
@@ -80,16 +83,22 @@ async def show_card(callback, filtered, index, rarity):
         f"📦 У тебя: {count} шт.\n\n"
         f"<i>{card.description or ''}</i>"
     )
-    kb = card_banner_keyboard(rarity, index, total)
+    kb = card_banner_keyboard(rarity, index, total, card.id)
+    # Удаляем старое сообщение и отправляем новое
+    await callback.message.delete()
     if card.image_url:
-        await callback.message.edit_caption(
+        await callback.message.answer_photo(
+            photo=card.image_url,
             caption=text,
             parse_mode="HTML",
             reply_markup=kb
         )
-        # Редактируем caption, а фото остается
     else:
-        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+        await callback.message.answer(
+            text,
+            parse_mode="HTML",
+            reply_markup=kb
+        )
 
 @router.callback_query(F.data.startswith("next_"))
 async def next_card(callback: types.CallbackQuery):
@@ -126,6 +135,59 @@ async def back_to_rarity(callback: types.CallbackQuery):
         reply_markup=rarity_selection_keyboard(cards)
     )
     await callback.answer()
+
+# ===== ПРОДАЖА КАРТЫ =====
+@router.callback_query(F.data.startswith("sell_card_"))
+async def sell_card(callback: types.CallbackQuery):
+    _, rarity, index_str, card_id_str = callback.data.split("_")
+    card_id = int(card_id_str)
+    user_id = callback.from_user.id
+
+    # Получаем карту из БД
+    from database import get_user_card, update_balance, add_card_to_user
+    user_card = await get_user_card(user_id, card_id)
+    if not user_card or user_card.count <= 0:
+        await callback.answer("❌ У тебя нет этой карты.", show_alert=True)
+        return
+
+    # Получаем данные карты
+    from database import async_session
+    from models import Card
+    from sqlalchemy import select
+    async with async_session() as session:
+        result = await session.execute(select(Card).where(Card.id == card_id))
+        card = result.scalar_one_or_none()
+        if not card:
+            await callback.answer("❌ Карта не найдена.", show_alert=True)
+            return
+
+    # Продаём одну карту
+    if user_card.count > 1:
+        user_card.count -= 1
+        await add_card_to_user(user_id, card_id)  # уменьшит количество
+    else:
+        # Удаляем запись
+        from database import async_session
+        async with async_session() as session:
+            await session.delete(user_card)
+            await session.commit()
+
+    # Начисляем деньги
+    await update_balance(user_id, card.sell_price)
+
+    await callback.answer(f"💰 Карта продана за {card.sell_price} монет!", show_alert=True)
+
+    # Обновляем отображение
+    cards = await get_user_cards_list(user_id)
+    filtered = [(c, count) for c, count in cards if c.rarity == rarity]
+    if filtered:
+        await show_card(callback, filtered, int(index_str), rarity)
+    else:
+        await callback.message.delete()
+        await callback.message.answer(
+            "🎴 У тебя больше нет карт этой редкости.",
+            reply_markup=back_to_cases_keyboard()
+        )
 
 @router.callback_query(F.data == "ignore")
 async def ignore_callback(callback: types.CallbackQuery):
