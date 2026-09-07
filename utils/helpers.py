@@ -1,4 +1,3 @@
-import random
 from database import get_user_card, add_card_to_user, update_balance
 
 async def process_case_open(user_id, card, callback):
