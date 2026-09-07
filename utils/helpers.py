@@ -1,4 +1,5 @@
 from database import get_user_card, add_card_to_user, update_balance
+from keyboards.inline import back_to_cases_keyboard
 
 async def process_case_open(user_id, card, callback):
     user_card = await get_user_card(user_id, card.id)
@@ -10,7 +11,12 @@ async def process_case_open(user_id, card, callback):
             f"Тебе выпала карта <b>{card.name}</b>, которая уже у тебя есть.\n"
             f"Ты получил компенсацию: <b>{compensation} монет</b> (20% от стоимости)."
         )
-        await callback.message.answer_photo(photo=card.image_url, caption=caption, parse_mode="HTML")
+        await callback.message.answer_photo(
+            photo=card.image_url,
+            caption=caption,
+            parse_mode="HTML",
+            reply_markup=back_to_cases_keyboard()
+        )
     else:
         await add_card_to_user(user_id, card.id)
         caption = (
@@ -20,4 +26,9 @@ async def process_case_open(user_id, card, callback):
             f"💰 Стоимость: <b>{card.sell_price} монет</b>\n\n"
             f"<i>{card.description or ''}</i>"
         )
-        await callback.message.answer_photo(photo=card.image_url, caption=caption, parse_mode="HTML")
+        await callback.message.answer_photo(
+            photo=card.image_url,
+            caption=caption,
+            parse_mode="HTML",
+            reply_markup=back_to_cases_keyboard()
+        )
