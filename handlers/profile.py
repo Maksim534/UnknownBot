@@ -42,7 +42,6 @@ async def my_cards(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     cards = await get_user_cards_list(user_id)
     if not cards:
-        # Если карт нет – показываем текст с кнопкой назад
         await callback.message.delete()
         await callback.message.answer(
             "🎴 У тебя пока нет карт. Открой кейс, чтобы получить первую!",
@@ -50,7 +49,6 @@ async def my_cards(callback: types.CallbackQuery):
         )
         await callback.answer()
         return
-    # Удаляем текущее сообщение и отправляем новое текстовое с выбором редкости
     await callback.message.delete()
     await callback.message.answer(
         "🎴 <b>Выбери редкость:</b>",
@@ -68,7 +66,6 @@ async def show_rarity(callback: types.CallbackQuery):
     if not filtered:
         await callback.answer("❌ У тебя нет карт этой редкости.", show_alert=True)
         return
-    # Показываем первую карту с фото
     await show_card(callback, filtered, 0, rarity)
 
 async def show_card(callback, filtered, index, rarity):
@@ -82,7 +79,6 @@ async def show_card(callback, filtered, index, rarity):
         f"<i>{card.description or ''}</i>"
     )
     kb = card_banner_keyboard(rarity, index, total, card.id)
-    # Удаляем предыдущее сообщение и отправляем новое с фото
     await callback.message.delete()
     if card.image_url:
         await callback.message.answer_photo(
@@ -149,19 +145,29 @@ async def back_to_main_menu(callback: types.CallbackQuery):
 # ===== ПРОДАЖА КАРТЫ =====
 @router.callback_query(F.data.startswith("sell_card_"))
 async def sell_card(callback: types.CallbackQuery):
-    _, rarity, index_str, card_id_str = callback.data.split("_")
+    # Формат: sell_card_rarity_index_card_id
+    parts = callback.data.split("_")
+    if len(parts) < 4:
+        await callback.answer("❌ Ошибка формата.", show_alert=True)
+        return
+    rarity = parts[2]
+    index_str = parts[3]
+    card_id_str = parts[4] if len(parts) > 4 else None
+    if not card_id_str:
+        await callback.answer("❌ Ошибка: нет ID карты.", show_alert=True)
+        return
     card_id = int(card_id_str)
     user_id = callback.from_user.id
 
-    from database import get_user_card, update_balance, add_card_to_user
+    from database import get_user_card, update_balance, add_card_to_user, async_session
+    from models import Card
+    from sqlalchemy import select
+
     user_card = await get_user_card(user_id, card_id)
     if not user_card or user_card.count <= 0:
         await callback.answer("❌ У тебя нет этой карты.", show_alert=True)
         return
 
-    from database import async_session
-    from models import Card
-    from sqlalchemy import select
     async with async_session() as session:
         result = await session.execute(select(Card).where(Card.id == card_id))
         card = result.scalar_one_or_none()
@@ -173,7 +179,6 @@ async def sell_card(callback: types.CallbackQuery):
         user_card.count -= 1
         await add_card_to_user(user_id, card_id)  # уменьшит количество
     else:
-        from database import async_session
         async with async_session() as session:
             await session.delete(user_card)
             await session.commit()
@@ -185,7 +190,12 @@ async def sell_card(callback: types.CallbackQuery):
     cards = await get_user_cards_list(user_id)
     filtered = [(c, count) for c, count in cards if c.rarity == rarity]
     if filtered:
-        await show_card(callback, filtered, int(index_str), rarity)
+        # Преобразуем index_str в число для show_card
+        try:
+            idx = int(index_str)
+        except ValueError:
+            idx = 0
+        await show_card(callback, filtered, idx, rarity)
     else:
         await callback.message.delete()
         await callback.message.answer(
