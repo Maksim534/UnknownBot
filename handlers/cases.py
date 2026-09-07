@@ -1,16 +1,13 @@
-import random
 from datetime import datetime, timedelta
 from aiogram import types, Router, F
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from database import (
-    get_user, get_balance, update_balance,
+    get_balance, update_balance,
     get_daily_case_time, set_daily_case_time,
-    get_user_card, add_card_to_user,
-    get_random_card_by_case,
-    get_all_events, get_random_event_card, get_event_by_id
+    get_random_card_by_case, get_random_event_card,
+    get_all_events, get_event_by_id
 )
-from keyboards.inline import cases_menu_keyboard, event_cases_keyboard, back_to_cases_keyboard
-from utils.helpers import process_case_open, format_card_message
+from keyboards.inline import cases_menu_keyboard, event_cases_keyboard, main_menu_keyboard
+from utils.helpers import process_case_open
 
 router = Router()
 
@@ -24,20 +21,19 @@ async def how_to_play(callback: types.CallbackQuery):
         "4. Участвуй в ивентах, чтобы получить эксклюзивные карты.\n"
         "5. Следи за новостями и акциями!"
     )
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=back_to_cases_keyboard())
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=cases_menu_keyboard())
     await callback.answer()
 
 @router.callback_query(F.data == "help")
 async def help_callback(callback: types.CallbackQuery):
     await callback.message.edit_text(
         "❓ Помощь — используй /help в любое время.",
-        reply_markup=back_to_cases_keyboard()
+        reply_markup=cases_menu_keyboard()
     )
     await callback.answer()
 
 @router.callback_query(F.data == "cases_menu")
 async def show_cases_menu(callback: types.CallbackQuery):
-    # Проверяем активные ивенты
     events = await get_all_events()
     active_events = [ev for ev in events if ev.is_active]
     if active_events:
@@ -56,7 +52,7 @@ async def back_to_menu(callback: types.CallbackQuery):
     await callback.message.edit_text("🎴 <b>Главное меню</b>", parse_mode="HTML", reply_markup=main_menu_keyboard())
     await callback.answer()
 
-# Далее обработчики открытия кейсов
+# ===== ОБРАБОТЧИКИ ОТКРЫТИЯ КЕЙСОВ =====
 async def handle_case_open(callback: types.CallbackQuery, case_type: str, price: int, is_daily=False):
     user_id = callback.from_user.id
     balance = await get_balance(user_id)
@@ -67,10 +63,9 @@ async def handle_case_open(callback: types.CallbackQuery, case_type: str, price:
             return
         await update_balance(user_id, -price)
 
-    # Получить карту
     card = await get_random_card_by_case(case_type)
     if not card:
-        await callback.answer("❌ Нет карт в базе для этого кейса.", show_alert=True)
+        await callback.answer("❌ Нет карт в этом кейсе.", show_alert=True)
         return
 
     await process_case_open(user_id, card, callback)
@@ -86,7 +81,7 @@ async def daily_case(callback: types.CallbackQuery):
         remaining = timedelta(hours=24) - (now - last_time)
         hours = remaining.seconds // 3600
         minutes = (remaining.seconds % 3600) // 60
-        await callback.answer(f"⏳ Ежедневный кейс ещё не доступен! Осталось {hours}ч {minutes}мин.", show_alert=True)
+        await callback.answer(f"⏳ Ещё не доступен! Осталось {hours}ч {minutes}мин.", show_alert=True)
         return
     await handle_case_open(callback, "обычный", 0, is_daily=True)
 
