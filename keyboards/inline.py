@@ -7,16 +7,16 @@ def main_menu_keyboard():
          InlineKeyboardButton(text="🎴 Мои карты", callback_data="my_cards")],
         [InlineKeyboardButton(text="💰 Баланс", callback_data="show_balance"),
          InlineKeyboardButton(text="💸 Доход", callback_data="claim_income")],
-        [InlineKeyboardButton(text="❓ Помощть", callback_data="help")]
+        [InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
     ])
 
 def cases_menu_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎁 Ежедневный кейс (бесплатно)", callback_data="daily_case")],
-        [InlineKeyboardButton(text="📦 Обычный кейс (1 000 монет)", callback_data="normal_case")],
-        [InlineKeyboardButton(text="🔴 Редкий кейс (5 000 монет)", callback_data="rare_case")],
-        [InlineKeyboardButton(text="🟣 Мифический кейс (15 000 монет)", callback_data="mythic_case")],
-        [InlineKeyboardButton(text="🌟 Ультра-легендарный кейс (50 000 монет)", callback_data="ultra_case")],
+        [InlineKeyboardButton(text="📦 Обычный кейс 100 монет", callback_data="normal_case")],
+        [InlineKeyboardButton(text="🔴 Редкий кейс 8.000 монет", callback_data="rare_case")],
+        [InlineKeyboardButton(text="🟣 Мифический кейс 60.000 монет", callback_data="mythic_case")],
+        [InlineKeyboardButton(text="🌟 Ультра-легендарный кейс 2.000.000 монет", callback_data="ultra_case")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")]
     ])
 
