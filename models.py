@@ -10,6 +10,7 @@ class User(Base):
     username = Column(String, nullable=True)
     balance = Column(Integer, default=0)
     daily_case_time = Column(DateTime, nullable=True)
+    last_income_time = Column(DateTime, nullable=True)  # время последнего сбора дохода
 
 class Card(Base):
     __tablename__ = "cards"
