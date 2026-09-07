@@ -21,7 +21,8 @@ async def get_user(user_id: int):
 
 async def register_user(user_id: int, username: str = None):
     async with async_session() as session:
-        user = await get_user(user_id)
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
         if not user:
             user = User(user_id=user_id, username=username, last_income_time=datetime.now())
             session.add(user)
@@ -29,23 +30,32 @@ async def register_user(user_id: int, username: str = None):
         return user
 
 async def get_balance(user_id: int):
-    user = await get_user(user_id)
-    return user.balance if user else 0
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
+        return user.balance if user else 0
 
 async def update_balance(user_id: int, amount: int):
+    """Обновляет баланс пользователя (исправлено)"""
     async with async_session() as session:
-        user = await get_user(user_id)
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
         if user:
             user.balance += amount
             await session.commit()
+            return True
+        return False
 
 async def get_daily_case_time(user_id: int):
-    user = await get_user(user_id)
-    return user.daily_case_time if user else None
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
+        return user.daily_case_time if user else None
 
 async def set_daily_case_time(user_id: int, time: datetime):
     async with async_session() as session:
-        user = await get_user(user_id)
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
         if user:
             user.daily_case_time = time
             await session.commit()
@@ -61,18 +71,29 @@ RARITY_INCOME = {
 }
 
 async def get_last_income_time(user_id: int):
-    user = await get_user(user_id)
-    return user.last_income_time if user else datetime.now()
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
+        return user.last_income_time if user else datetime.now()
 
 async def set_last_income_time(user_id: int, time: datetime):
     async with async_session() as session:
-        user = await get_user(user_id)
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
         if user:
             user.last_income_time = time
             await session.commit()
 
+async def get_user_cards_list(user_id: int):
+    async with async_session() as session:
+        result = await session.execute(
+            select(Card, UserCard.count)
+            .join(UserCard, Card.id == UserCard.card_id)
+            .where(UserCard.user_id == user_id)
+        )
+        return result.all()
+
 async def calculate_income(user_id: int):
-    # Считаем суммарный доход за минуту
     cards = await get_user_cards_list(user_id)
     total_per_minute = 0
     for card, count in cards:
@@ -86,12 +107,11 @@ async def claim_income(user_id: int):
     diff = now - last_time
     minutes = diff.total_seconds() / 60
     if minutes < 1:
-        return 0  # слишком мало времени прошло
+        return 0
 
-    # Рассчитываем доход за прошедшее время
     per_minute = await calculate_income(user_id)
     earned = per_minute * minutes
-    earned = int(earned)  # округляем вниз до целого
+    earned = int(earned)
 
     if earned > 0:
         await update_balance(user_id, earned)
@@ -126,22 +146,17 @@ async def get_user_card(user_id: int, card_id: int):
 
 async def add_card_to_user(user_id: int, card_id: int):
     async with async_session() as session:
-        user_card = await get_user_card(user_id, card_id)
+        # Проверяем, есть ли уже такая карта у пользователя
+        result = await session.execute(
+            select(UserCard).where(UserCard.user_id == user_id, UserCard.card_id == card_id)
+        )
+        user_card = result.scalar_one_or_none()
         if user_card:
             user_card.count += 1
         else:
             user_card = UserCard(user_id=user_id, card_id=card_id, count=1)
             session.add(user_card)
         await session.commit()
-
-async def get_user_cards_list(user_id: int):
-    async with async_session() as session:
-        result = await session.execute(
-            select(Card, UserCard.count)
-            .join(UserCard, Card.id == UserCard.card_id)
-            .where(UserCard.user_id == user_id)
-        )
-        return result.all()
 
 # ===== ИВЕНТЫ =====
 async def get_all_events():
@@ -156,7 +171,8 @@ async def get_event_by_id(event_id: int):
 
 async def toggle_event(event_id: int):
     async with async_session() as session:
-        event = await get_event_by_id(event_id)
+        result = await session.execute(select(EventCase).where(EventCase.id == event_id))
+        event = result.scalar_one_or_none()
         if event:
             event.is_active = not event.is_active
             await session.commit()
