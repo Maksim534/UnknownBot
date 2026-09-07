@@ -5,8 +5,9 @@ def main_menu_keyboard():
         [InlineKeyboardButton(text="📖 Как играть", callback_data="how_to_play")],
         [InlineKeyboardButton(text="📦 Кейсы", callback_data="cases_menu"),
          InlineKeyboardButton(text="🎴 Мои карты", callback_data="my_cards")],
-        [InlineKeyboardButton(text="💰 Доход", callback_data="claim_income"),
-         InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
+        [InlineKeyboardButton(text="💰 Баланс", callback_data="show_balance"),
+         InlineKeyboardButton(text="💸 Доход", callback_data="claim_income")],
+        [InlineKeyboardButton(text="❓ Помощть", callback_data="help")]
     ])
 
 def cases_menu_keyboard():
