@@ -6,7 +6,10 @@ from database import (
     get_random_card_by_case, get_random_event_card,
     get_all_events, get_event_by_id
 )
-from keyboards.inline import cases_menu_keyboard, event_cases_keyboard, main_menu_keyboard
+from keyboards.inline import (
+    cases_menu_keyboard, event_cases_keyboard, main_menu_keyboard,
+    back_to_cases_keyboard, back_to_main_keyboard
+)
 from utils.helpers import process_case_open
 
 router = Router()
@@ -21,15 +24,25 @@ async def how_to_play(callback: types.CallbackQuery):
         "4. Участвуй в ивентах, чтобы получить эксклюзивные карты.\n"
         "5. Следи за новостями и акциями!"
     )
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=cases_menu_keyboard())
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=back_to_cases_keyboard())
     await callback.answer()
 
 @router.callback_query(F.data == "help")
 async def help_callback(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "❓ Помощь — используй /help в любое время.",
-        reply_markup=cases_menu_keyboard()
+    text = (
+        "❓ <b>Помощь</b>\n\n"
+        "🎴 <b>Как играть:</b>\n"
+        "• Нажми «📦 Кейсы» и выбери кейс для открытия\n"
+        "• Каждый день доступен бесплатный ежедневный кейс\n"
+        "• При выпадении дубликата ты получаешь 20% от стоимости карты\n"
+        "• В ивентовых кейсах можно получить эксклюзивные карты\n\n"
+        "💰 <b>Доход:</b>\n"
+        "• Каждая карта приносит монеты в минуту\n"
+        "• Обычная — 1 монета/мин, редкая — 5, эпическая — 15, легендарная — 50, мифическая — 150, ультралегендарная — 500\n"
+        "• Заходи в раздел «💰 Доход» и забирай накопленное!\n\n"
+        "❓ Вопросы? Пиши разработчику: @dev"
     )
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=back_to_main_keyboard())
     await callback.answer()
 
 @router.callback_query(F.data == "cases_menu")
@@ -52,7 +65,7 @@ async def back_to_menu(callback: types.CallbackQuery):
     await callback.message.edit_text("🎴 <b>Главное меню</b>", parse_mode="HTML", reply_markup=main_menu_keyboard())
     await callback.answer()
 
-# ===== ОБРАБОТЧИКИ ОТКРЫТИЯ КЕЙСОВ =====
+# ===== ОБРАБОТЧИКИ ОТКРЫТИЯ КЕЙСОВ (остаются без изменений) =====
 async def handle_case_open(callback: types.CallbackQuery, case_type: str, price: int, is_daily=False):
     user_id = callback.from_user.id
     balance = await get_balance(user_id)
