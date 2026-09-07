@@ -1,7 +1,7 @@
 from aiogram import types, Router, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from database import get_user_cards_list, get_balance, get_user
-from keyboards.inline import back_to_cases_keyboard
+from keyboards.inline import back_to_cases_keyboard, main_menu_keyboard
 
 router = Router()
 
@@ -42,13 +42,17 @@ async def my_cards(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     cards = await get_user_cards_list(user_id)
     if not cards:
-        await callback.message.edit_text(
+        # Если карт нет – показываем текст с кнопкой назад
+        await callback.message.delete()
+        await callback.message.answer(
             "🎴 У тебя пока нет карт. Открой кейс, чтобы получить первую!",
             reply_markup=back_to_cases_keyboard()
         )
         await callback.answer()
         return
-    await callback.message.edit_text(
+    # Удаляем текущее сообщение и отправляем новое текстовое с выбором редкости
+    await callback.message.delete()
+    await callback.message.answer(
         "🎴 <b>Выбери редкость:</b>",
         parse_mode="HTML",
         reply_markup=rarity_selection_keyboard(cards)
@@ -64,16 +68,10 @@ async def show_rarity(callback: types.CallbackQuery):
     if not filtered:
         await callback.answer("❌ У тебя нет карт этой редкости.", show_alert=True)
         return
-
-    # Сохраняем список в кеш, чтобы не перезапрашивать при навигации
-    # Используем словарь в самом обработчике, но проще — в данных сообщения
-    # Вместо этого передаём индекс и редкость, а список получаем заново (но это дорого)
-    # Сделаем проще: будем передавать индекс через callback.data и каждый раз получать список
+    # Показываем первую карту с фото
     await show_card(callback, filtered, 0, rarity)
 
 async def show_card(callback, filtered, index, rarity):
-    if not filtered:
-        return
     card, count = filtered[index]
     total = len(filtered)
     text = (
@@ -84,7 +82,7 @@ async def show_card(callback, filtered, index, rarity):
         f"<i>{card.description or ''}</i>"
     )
     kb = card_banner_keyboard(rarity, index, total, card.id)
-    # Удаляем старое сообщение и отправляем новое
+    # Удаляем предыдущее сообщение и отправляем новое с фото
     await callback.message.delete()
     if card.image_url:
         await callback.message.answer_photo(
@@ -127,12 +125,24 @@ async def back_to_rarity(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     cards = await get_user_cards_list(user_id)
     if not cards:
-        await callback.message.edit_text("🎴 У тебя пока нет карт.")
+        await callback.message.delete()
+        await callback.message.answer("🎴 У тебя пока нет карт.")
         return
-    await callback.message.edit_text(
+    await callback.message.delete()
+    await callback.message.answer(
         "🎴 <b>Выбери редкость:</b>",
         parse_mode="HTML",
         reply_markup=rarity_selection_keyboard(cards)
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "back_to_menu")
+async def back_to_main_menu(callback: types.CallbackQuery):
+    await callback.message.delete()
+    await callback.message.answer(
+        "🎴 <b>Главное меню</b>",
+        parse_mode="HTML",
+        reply_markup=main_menu_keyboard()
     )
     await callback.answer()
 
@@ -143,14 +153,12 @@ async def sell_card(callback: types.CallbackQuery):
     card_id = int(card_id_str)
     user_id = callback.from_user.id
 
-    # Получаем карту из БД
     from database import get_user_card, update_balance, add_card_to_user
     user_card = await get_user_card(user_id, card_id)
     if not user_card or user_card.count <= 0:
         await callback.answer("❌ У тебя нет этой карты.", show_alert=True)
         return
 
-    # Получаем данные карты
     from database import async_session
     from models import Card
     from sqlalchemy import select
@@ -161,20 +169,16 @@ async def sell_card(callback: types.CallbackQuery):
             await callback.answer("❌ Карта не найдена.", show_alert=True)
             return
 
-    # Продаём одну карту
     if user_card.count > 1:
         user_card.count -= 1
         await add_card_to_user(user_id, card_id)  # уменьшит количество
     else:
-        # Удаляем запись
         from database import async_session
         async with async_session() as session:
             await session.delete(user_card)
             await session.commit()
 
-    # Начисляем деньги
     await update_balance(user_id, card.sell_price)
-
     await callback.answer(f"💰 Карта продана за {card.sell_price} монет!", show_alert=True)
 
     # Обновляем отображение
