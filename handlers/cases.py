@@ -100,19 +100,19 @@ async def daily_case(callback: types.CallbackQuery):
 
 @router.callback_query(F.data == "normal_case")
 async def normal_case(callback: types.CallbackQuery):
-    await handle_case_open(callback, "обычный", 1000)
+    await handle_case_open(callback, "обычный", 100)
 
 @router.callback_query(F.data == "rare_case")
 async def rare_case(callback: types.CallbackQuery):
-    await handle_case_open(callback, "редкий", 5000)
+    await handle_case_open(callback, "редкий", 8000)
 
 @router.callback_query(F.data == "mythic_case")
 async def mythic_case(callback: types.CallbackQuery):
-    await handle_case_open(callback, "мифический", 15000)
+    await handle_case_open(callback, "мифический", 60000)
 
 @router.callback_query(F.data == "ultra_case")
 async def ultra_case(callback: types.CallbackQuery):
-    await handle_case_open(callback, "ультралегендарный", 50000)
+    await handle_case_open(callback, "ультралегендарный", 2000000)
 
 @router.callback_query(F.data.startswith("event_case_"))
 async def event_case(callback: types.CallbackQuery):
