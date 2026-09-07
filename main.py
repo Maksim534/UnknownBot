@@ -7,11 +7,14 @@ from database import init_db
 
 async def main():
     logging.basicConfig(level=logging.INFO)
-    await init_db()                     # <-- создать таблицы
-    await load_or_update_cards()        # <-- загрузить карты
+    await init_db()                     # создать таблицы
+    await load_or_update_cards()        # загрузить карты
     dp.include_router(start.router)
     dp.include_router(promo.router)
     dp.include_router(cases.router)
     dp.include_router(profile.router)
     dp.include_router(admin.router)
     await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
