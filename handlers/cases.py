@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from aiogram import types, Router, F
+from aiogram.exceptions import TelegramBadRequest
 from database import (
     get_balance, update_balance,
     get_daily_case_time, set_daily_case_time,
@@ -14,7 +15,7 @@ from utils.helpers import process_case_open
 
 router = Router()
 
-# ===== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ОТКРЫТИЯ КЕЙСА =====
+# ===== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ОТКРЫТИЯ КЕЙСА (без удаления сообщения) =====
 async def handle_case_open(callback: types.CallbackQuery, case_type: str, price: int, is_daily=False):
     user_id = callback.from_user.id
     balance = await get_balance(user_id)
@@ -30,10 +31,7 @@ async def handle_case_open(callback: types.CallbackQuery, case_type: str, price:
         await callback.answer("❌ Нет карт в этом кейсе.", show_alert=True)
         return
 
-    # Удаляем меню кейсов
-    await callback.message.delete()
-
-    # Отправляем результат
+    # Отправляем результат (сообщение с картой)
     await process_case_open(user_id, card, callback, case_type, price, is_daily)
 
     if is_daily:
@@ -111,22 +109,43 @@ async def daily_case(callback: types.CallbackQuery):
         minutes = (remaining.seconds % 3600) // 60
         await callback.answer(f"⏳ Ещё не доступен! Осталось {hours}ч {minutes}мин.", show_alert=True)
         return
+    # Удаляем меню кейсов
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
     await handle_case_open(callback, "обычный", 0, is_daily=True)
 
 @router.callback_query(F.data == "normal_case")
 async def normal_case(callback: types.CallbackQuery):
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
     await handle_case_open(callback, "обычный", 100)
 
 @router.callback_query(F.data == "rare_case")
 async def rare_case(callback: types.CallbackQuery):
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
     await handle_case_open(callback, "редкий", 8000)
 
 @router.callback_query(F.data == "mythic_case")
 async def mythic_case(callback: types.CallbackQuery):
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
     await handle_case_open(callback, "мифический", 60000)
 
 @router.callback_query(F.data == "ultra_case")
 async def ultra_case(callback: types.CallbackQuery):
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
     await handle_case_open(callback, "ультралегендарный", 2000000)
 
 # ===== ИВЕНТОВЫЕ КЕЙСЫ =====
@@ -147,7 +166,10 @@ async def event_case(callback: types.CallbackQuery):
     if not card:
         await callback.answer("❌ В этом ивенте нет карт.", show_alert=True)
         return
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
     await process_case_open(user_id, card, callback, case_type="ивент", price=event.price, is_daily=False)
 
 # ===== КНОПКА "КРУТИТЬ ЕЩЁ РАЗ" =====
@@ -163,6 +185,11 @@ async def spin_again(callback: types.CallbackQuery):
     except (IndexError, ValueError):
         price = 0
 
-    await callback.message.delete()
+    # Удаляем текущее сообщение с результатом
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
+
     # Открываем кейс снова (не ежедневный)
     await handle_case_open(callback, case_type, price, is_daily=False)
