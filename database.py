@@ -1,8 +1,8 @@
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select, func
 from models import Base, User, Card, UserCard, EventCase, EventCaseCard
 from config import DB_URL
 
@@ -23,7 +23,7 @@ async def register_user(user_id: int, username: str = None):
     async with async_session() as session:
         user = await get_user(user_id)
         if not user:
-            user = User(user_id=user_id, username=username)
+            user = User(user_id=user_id, username=username, last_income_time=datetime.now())
             session.add(user)
             await session.commit()
         return user
@@ -49,6 +49,54 @@ async def set_daily_case_time(user_id: int, time: datetime):
         if user:
             user.daily_case_time = time
             await session.commit()
+
+# ===== ДОХОД =====
+RARITY_INCOME = {
+    "обычная": 1,
+    "редкая": 5,
+    "эпическая": 15,
+    "легендарная": 50,
+    "мифическая": 150,
+    "ультралегендарная": 500
+}
+
+async def get_last_income_time(user_id: int):
+    user = await get_user(user_id)
+    return user.last_income_time if user else datetime.now()
+
+async def set_last_income_time(user_id: int, time: datetime):
+    async with async_session() as session:
+        user = await get_user(user_id)
+        if user:
+            user.last_income_time = time
+            await session.commit()
+
+async def calculate_income(user_id: int):
+    # Считаем суммарный доход за минуту
+    cards = await get_user_cards_list(user_id)
+    total_per_minute = 0
+    for card, count in cards:
+        income_per_card = RARITY_INCOME.get(card.rarity, 0)
+        total_per_minute += income_per_card * count
+    return total_per_minute
+
+async def claim_income(user_id: int):
+    last_time = await get_last_income_time(user_id)
+    now = datetime.now()
+    diff = now - last_time
+    minutes = diff.total_seconds() / 60
+    if minutes < 1:
+        return 0  # слишком мало времени прошло
+
+    # Рассчитываем доход за прошедшее время
+    per_minute = await calculate_income(user_id)
+    earned = per_minute * minutes
+    earned = int(earned)  # округляем вниз до целого
+
+    if earned > 0:
+        await update_balance(user_id, earned)
+        await set_last_income_time(user_id, now)
+    return earned
 
 # ===== КАРТЫ =====
 async def get_cards_by_case_type(case_type: str, event_only=False):
