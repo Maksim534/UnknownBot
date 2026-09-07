@@ -2,7 +2,7 @@
   {
     "name": "Мия",
     "rarity": "обычная",
-    "image_url": "https://example.com/miya.jpg",
+    "image_url": "https://i.imgur.com/example1.jpg",
     "sell_price": 100,
     "case_type": "обычный",
     "description": "Милая девушка с кошачьими ушами."
@@ -10,9 +10,33 @@
   {
     "name": "Асуна",
     "rarity": "редкая",
-    "image_url": "https://example.com/asuna.jpg",
+    "image_url": "https://i.imgur.com/example2.jpg",
     "sell_price": 300,
     "case_type": "редкий",
     "description": "Героиня из виртуального мира."
+  },
+  {
+    "name": "Сакура",
+    "rarity": "эпическая",
+    "image_url": "https://i.imgur.com/example3.jpg",
+    "sell_price": 800,
+    "case_type": "редкий",
+    "description": "Воин с мечом."
+  },
+  {
+    "name": "Луна",
+    "rarity": "легендарная",
+    "image_url": "https://i.imgur.com/example4.jpg",
+    "sell_price": 1500,
+    "case_type": "мифический",
+    "description": "Богиня ночи."
+  },
+  {
+    "name": "Солара",
+    "rarity": "ультралегендарная",
+    "image_url": "https://i.imgur.com/example5.jpg",
+    "sell_price": 3000,
+    "case_type": "ультралегендарный",
+    "description": "Владычица солнца."
   }
 ]
