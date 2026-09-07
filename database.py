@@ -2,7 +2,7 @@ import random
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select, func
+from sqlalchemy import select
 from models import Base, User, Card, UserCard, EventCase, EventCaseCard
 from config import DB_URL
 
@@ -36,7 +36,6 @@ async def get_balance(user_id: int):
         return user.balance if user else 0
 
 async def update_balance(user_id: int, amount: int):
-    """Обновляет баланс пользователя (исправлено)"""
     async with async_session() as session:
         result = await session.execute(select(User).where(User.user_id == user_id))
         user = result.scalar_one_or_none()
@@ -69,6 +68,56 @@ RARITY_INCOME = {
     "мифическая": 150,
     "ультралегендарная": 500
 }
+
+# ===== ВЕСА ДЛЯ ШАНСОВ В ЗАВИСИМОСТИ ОТ ТИПА КЕЙСА =====
+# Чем больше число, тем выше шанс.
+# Для каждого кейса можно настроить свои веса.
+CASE_RARITY_WEIGHTS = {
+    "обычный": {
+        "обычная": 100,
+        "редкая": 30,
+        "эпическая": 8,
+        "легендарная": 2,
+        "мифическая": 0.5,
+        "ультралегендарная": 0.1
+    },
+    "редкий": {
+        "обычная": 50,
+        "редкая": 100,
+        "эпическая": 30,
+        "легендарная": 8,
+        "мифическая": 2,
+        "ультралегендарная": 0.5
+    },
+    "мифический": {
+        "обычная": 10,
+        "редкая": 30,
+        "эпическая": 100,
+        "легендарная": 40,
+        "мифическая": 15,
+        "ультралегендарная": 3
+    },
+    "ультралегендарный": {
+        "обычная": 2,
+        "редкая": 5,
+        "эпическая": 20,
+        "легендарная": 80,
+        "мифическая": 100,
+        "ультралегендарная": 50
+    }
+}
+
+# Для ивентовых кейсов можно использовать отдельные веса,
+# либо взять веса от ультралегендарного кейса (по умолчанию).
+# Если хотите настроить ивенты отдельно – раскомментируйте и измените:
+# "ивент": { ... }
+
+# Функция получения весов для конкретного кейса
+def get_weights_for_case(case_type: str):
+    if case_type in CASE_RARITY_WEIGHTS:
+        return CASE_RARITY_WEIGHTS[case_type]
+    # fallback – если кейса нет в словаре, используем веса обычного кейса
+    return CASE_RARITY_WEIGHTS["обычный"]
 
 async def get_last_income_time(user_id: int):
     async with async_session() as session:
@@ -126,10 +175,25 @@ async def get_cards_by_case_type(case_type: str, event_only=False):
         return result.scalars().all()
 
 async def get_random_card_by_case(case_type: str):
+    """
+    Возвращает случайную карту из указанного кейса с учётом весов редкости для этого кейса.
+    """
     cards = await get_cards_by_case_type(case_type, event_only=False)
     if not cards:
         return None
-    return random.choice(cards)
+
+    # Получаем веса для данного кейса
+    weights_for_case = get_weights_for_case(case_type)
+
+    # Формируем список весов для каждой карты
+    weights = []
+    for card in cards:
+        weight = weights_for_case.get(card.rarity, 10)  # если редкость не найдена, вес = 10
+        weights.append(weight)
+
+    # Взвешенный случайный выбор
+    chosen_card = random.choices(cards, weights=weights, k=1)[0]
+    return chosen_card
 
 async def get_all_cards():
     async with async_session() as session:
@@ -146,7 +210,6 @@ async def get_user_card(user_id: int, card_id: int):
 
 async def add_card_to_user(user_id: int, card_id: int):
     async with async_session() as session:
-        # Проверяем, есть ли уже такая карта у пользователя
         result = await session.execute(
             select(UserCard).where(UserCard.user_id == user_id, UserCard.card_id == card_id)
         )
@@ -187,7 +250,21 @@ async def get_event_cards(event_id: int):
         return result.scalars().all()
 
 async def get_random_event_card(event_id: int):
+    """
+    Возвращает случайную карту из ивентового кейса.
+    Для ивентов используем веса ультралегендарного кейса (можно изменить).
+    """
     cards = await get_event_cards(event_id)
     if not cards:
         return None
-    return random.choice(cards)
+
+    # Для ивентов можно использовать отдельные веса, но пока возьмём веса от ультралегендарного кейса
+    weights_for_case = get_weights_for_case("ультралегендарный")
+
+    weights = []
+    for card in cards:
+        weight = weights_for_case.get(card.rarity, 10)
+        weights.append(weight)
+
+    chosen_card = random.choices(cards, weights=weights, k=1)[0]
+    return chosen_card
