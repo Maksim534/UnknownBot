@@ -1,6 +1,6 @@
 from aiogram import types, Router, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from database import get_user_cards_list, get_balance, get_user
+from database import get_user_cards_list, get_balance, get_user, get_card_by_id
 from keyboards.inline import back_to_cases_keyboard, main_menu_keyboard
 
 router = Router()
@@ -32,7 +32,7 @@ def card_banner_keyboard(rarity, index, total, card_id):
         nav.append(InlineKeyboardButton(text="▶️", callback_data=f"next_{rarity}_{index}"))
         kb.append(nav)
     kb.append([
-        InlineKeyboardButton(text="💰 Продать", callback_data=f"sell_card_{rarity}_{index}_{card_id}"),
+        InlineKeyboardButton(text="💰 Продать", callback_data=f"sell_{card_id}_{index}"),
         InlineKeyboardButton(text="🔙 Назад", callback_data=f"back_to_rarity")
     ])
     return InlineKeyboardMarkup(inline_keyboard=kb)
@@ -143,53 +143,62 @@ async def back_to_main_menu(callback: types.CallbackQuery):
     await callback.answer()
 
 # ===== ПРОДАЖА КАРТЫ =====
-@router.callback_query(F.data.startswith("sell_card_"))
+@router.callback_query(F.data.startswith("sell_"))
 async def sell_card(callback: types.CallbackQuery):
-    # Формат: sell_card_{rarity}_{index}_{card_id}
     parts = callback.data.split("_")
-    if len(parts) != 4:
+    if len(parts) != 3:
         await callback.answer("❌ Ошибка формата.", show_alert=True)
         return
-    rarity = parts[1]
+    card_id = int(parts[1])
     index_str = parts[2]
-    card_id = int(parts[3])
     user_id = callback.from_user.id
 
-    from database import get_user_card, update_balance, add_card_to_user
+    from database import get_user_card, update_balance, add_card_to_user, async_session
+    from models import Card
+    from sqlalchemy import select
+
     user_card = await get_user_card(user_id, card_id)
     if not user_card or user_card.count <= 0:
         await callback.answer("❌ У тебя нет этой карты.", show_alert=True)
         return
 
-    from database import async_session
-    from models import Card
-    from sqlalchemy import select
-    async with async_session() as session:
-        result = await session.execute(select(Card).where(Card.id == card_id))
-        card = result.scalar_one_or_none()
-        if not card:
-            await callback.answer("❌ Карта не найдена.", show_alert=True)
-            return
+    card = await get_card_by_id(card_id)
+    if not card:
+        await callback.answer("❌ Карта не найдена.", show_alert=True)
+        return
 
+    # Уменьшаем количество или удаляем
     if user_card.count > 1:
         user_card.count -= 1
-        await add_card_to_user(user_id, card_id)
+        async with async_session() as session:
+            await session.merge(user_card)
+            await session.commit()
     else:
         async with async_session() as session:
             await session.delete(user_card)
             await session.commit()
 
+    # Начисляем монеты
     await update_balance(user_id, card.sell_price)
     await callback.answer(f"💰 Карта продана за {card.sell_price} монет!", show_alert=True)
 
     # Обновляем отображение
-    cards = await get_user_cards_list(user_id)
-    filtered = [(c, count) for c, count in cards if c.rarity == rarity]
-    if filtered:
-        await show_card(callback, filtered, int(index_str), rarity)
-    else:
+    all_cards = await get_user_cards_list(user_id)
+    filtered = [(c, count) for c, count in all_cards if c.rarity == card.rarity]
+    if not filtered:
         await callback.message.delete()
         await callback.message.answer(
             "🎴 У тебя больше нет карт этой редкости.",
             reply_markup=back_to_cases_keyboard()
         )
+        return
+
+    # Если индекс вышел за пределы, показываем последнюю
+    idx = int(index_str)
+    if idx >= len(filtered):
+        idx = len(filtered) - 1
+    await show_card(callback, filtered, idx, card.rarity)
+
+@router.callback_query(F.data == "ignore")
+async def ignore_callback(callback: types.CallbackQuery):
+    await callback.answer()
