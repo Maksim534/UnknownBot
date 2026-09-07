@@ -86,9 +86,8 @@ async def activate_promo_command(message: types.Message):
 
 # ===== АДМИНСКАЯ ЧАСТЬ =====
 
-# Меню промокодов из админки
 @router.callback_query(F.data == "admin_promo")
-async def admin_promo(callback: types.CallbackQuery):
+async def admin_promo_menu(callback: types.CallbackQuery):
     if callback.from_user.id not in ADMIN_IDS:
         await callback.answer("⛔ Доступ запрещён.", show_alert=True)
         return
