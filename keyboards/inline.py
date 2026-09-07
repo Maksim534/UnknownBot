@@ -53,3 +53,8 @@ def back_to_rarity_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_rarity")]
     ])
+
+def back_to_main_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
+    ])
