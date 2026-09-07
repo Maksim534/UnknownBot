@@ -1,4 +1,4 @@
-from aiogram import types, Router
+from aiogram import types, Router, F
 from aiogram.filters import Command
 from keyboards.inline import main_menu_keyboard
 from database import register_user, claim_income, get_balance
@@ -41,22 +41,33 @@ async def cmd_help(message: types.Message):
     )
     await message.answer(text, parse_mode="HTML")
 
-# ===== КНОПКА "ДОХОД" =====
-from aiogram import F
+# ===== КНОПКА "БАЛАНС" =====
+@router.callback_query(F.data == "show_balance")
+async def show_balance(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    balance = await get_balance(user_id)
+    await callback.message.edit_text(
+        f"💰 <b>Твой баланс</b>\n\n"
+        f"У тебя <b>{balance}</b> монет.",
+        parse_mode="HTML",
+        reply_markup=main_menu_keyboard()
+    )
+    await callback.answer()
 
+# ===== КНОПКА "ДОХОД" =====
 @router.callback_query(F.data == "claim_income")
 async def claim_income_callback(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     earned = await claim_income(user_id)
     balance = await get_balance(user_id)
     if earned == 0:
-        await callback.message.answer(
+        await callback.message.edit_text(
             "⏳ Нет накопленного дохода.\n"
             "Подожди немного, карты приносят монеты каждую минуту.",
             reply_markup=main_menu_keyboard()
         )
     else:
-        await callback.message.answer(
+        await callback.message.edit_text(
             f"💰 <b>Доход получен!</b>\n\n"
             f"Ты заработал <b>{earned} монет</b> за время отсутствия.\n"
             f"Твой баланс: <b>{balance} монет</b>",
