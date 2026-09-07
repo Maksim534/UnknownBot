@@ -1,1 +1,1 @@
-from . import start, cases, profile, admin
+from . import start, cases, profile, admin, promo
