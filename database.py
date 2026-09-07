@@ -273,3 +273,8 @@ async def get_card_by_id(card_id: int):
     async with async_session() as session:
         result = await session.execute(select(Card).where(Card.id == card_id))
         return result.scalar_one_or_none()
+
+async def get_card_by_id(card_id: int):
+    async with async_session() as session:
+        result = await session.execute(select(Card).where(Card.id == card_id))
+        return result.scalar_one_or_none()
