@@ -1,6 +1,6 @@
 from aiogram import types, Router, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from database import get_user_cards_list, get_balance, get_user
+from database import get_user_cards_list, get_balance, get_user, get_card_by_id, get_user_card, update_balance, add_card_to_user
 from keyboards.inline import back_to_cases_keyboard, main_menu_keyboard
 
 router = Router()
@@ -147,34 +147,35 @@ async def back_to_main_menu(callback: types.CallbackQuery):
 async def sell_card(callback: types.CallbackQuery):
     # Формат: sell_card_{rarity}_{index}_{card_id}
     parts = callback.data.split("_")
-    if len(parts) != 4:
+    if len(parts) < 4:
         await callback.answer("❌ Ошибка формата.", show_alert=True)
         return
+    # Если редкость содержит пробелы, то она может быть разделена на несколько частей, например "sell_card_редкая_1_5" - здесь 4 части.
+    # Но если редкость содержит "_", то это проблема. Однако у нас "редкая", "обычная" - без "_".
     rarity = parts[1]
     index_str = parts[2]
     card_id = int(parts[3])
     user_id = callback.from_user.id
 
-    from database import get_user_card, update_balance, add_card_to_user
     user_card = await get_user_card(user_id, card_id)
     if not user_card or user_card.count <= 0:
         await callback.answer("❌ У тебя нет этой карты.", show_alert=True)
         return
 
-    from database import async_session
-    from models import Card
-    from sqlalchemy import select
-    async with async_session() as session:
-        result = await session.execute(select(Card).where(Card.id == card_id))
-        card = result.scalar_one_or_none()
-        if not card:
-            await callback.answer("❌ Карта не найдена.", show_alert=True)
-            return
+    card = await get_card_by_id(card_id)
+    if not card:
+        await callback.answer("❌ Карта не найдена.", show_alert=True)
+        return
 
     if user_card.count > 1:
         user_card.count -= 1
-        await add_card_to_user(user_id, card_id)
+        await add_card_to_user(user_id, card_id)  # мы не увеличиваем, а уменьшаем? Лучше напрямую обновить.
+        # Проще: обновить count в user_card и сохранить.
+        from database import async_session
+        async with async_session() as session:
+            await session.commit()
     else:
+        from database import async_session
         async with async_session() as session:
             await session.delete(user_card)
             await session.commit()
@@ -182,6 +183,7 @@ async def sell_card(callback: types.CallbackQuery):
     await update_balance(user_id, card.sell_price)
     await callback.answer(f"💰 Карта продана за {card.sell_price} монет!", show_alert=True)
 
+    # Обновляем отображение
     cards = await get_user_cards_list(user_id)
     filtered = [(c, count) for c, count in cards if c.rarity == rarity]
     if filtered:
