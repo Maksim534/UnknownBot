@@ -145,29 +145,25 @@ async def back_to_main_menu(callback: types.CallbackQuery):
 # ===== ПРОДАЖА КАРТЫ =====
 @router.callback_query(F.data.startswith("sell_card_"))
 async def sell_card(callback: types.CallbackQuery):
-    # Формат: sell_card_rarity_index_card_id
+    # Формат: sell_card_{rarity}_{index}_{card_id}
     parts = callback.data.split("_")
-    if len(parts) < 4:
+    if len(parts) != 4:
         await callback.answer("❌ Ошибка формата.", show_alert=True)
         return
-    rarity = parts[2]
-    index_str = parts[3]
-    card_id_str = parts[4] if len(parts) > 4 else None
-    if not card_id_str:
-        await callback.answer("❌ Ошибка: нет ID карты.", show_alert=True)
-        return
-    card_id = int(card_id_str)
+    rarity = parts[1]
+    index_str = parts[2]
+    card_id = int(parts[3])
     user_id = callback.from_user.id
 
-    from database import get_user_card, update_balance, add_card_to_user, async_session
-    from models import Card
-    from sqlalchemy import select
-
+    from database import get_user_card, update_balance, add_card_to_user
     user_card = await get_user_card(user_id, card_id)
     if not user_card or user_card.count <= 0:
         await callback.answer("❌ У тебя нет этой карты.", show_alert=True)
         return
 
+    from database import async_session
+    from models import Card
+    from sqlalchemy import select
     async with async_session() as session:
         result = await session.execute(select(Card).where(Card.id == card_id))
         card = result.scalar_one_or_none()
@@ -177,7 +173,7 @@ async def sell_card(callback: types.CallbackQuery):
 
     if user_card.count > 1:
         user_card.count -= 1
-        await add_card_to_user(user_id, card_id)  # уменьшит количество
+        await add_card_to_user(user_id, card_id)
     else:
         async with async_session() as session:
             await session.delete(user_card)
@@ -190,19 +186,10 @@ async def sell_card(callback: types.CallbackQuery):
     cards = await get_user_cards_list(user_id)
     filtered = [(c, count) for c, count in cards if c.rarity == rarity]
     if filtered:
-        # Преобразуем index_str в число для show_card
-        try:
-            idx = int(index_str)
-        except ValueError:
-            idx = 0
-        await show_card(callback, filtered, idx, rarity)
+        await show_card(callback, filtered, int(index_str), rarity)
     else:
         await callback.message.delete()
         await callback.message.answer(
             "🎴 У тебя больше нет карт этой редкости.",
             reply_markup=back_to_cases_keyboard()
         )
-
-@router.callback_query(F.data == "ignore")
-async def ignore_callback(callback: types.CallbackQuery):
-    await callback.answer()
