@@ -1,7 +1,7 @@
 from database import get_user_card, add_card_to_user, update_balance
-from keyboards.inline import back_to_cases_keyboard
+from keyboards.inline import case_result_keyboard
 
-async def process_case_open(user_id, card, callback):
+async def process_case_open(user_id, card, callback, case_type: str, price: int, is_daily: bool = False):
     user_card = await get_user_card(user_id, card.id)
     if user_card:
         compensation = int(card.sell_price * 0.2)
@@ -15,7 +15,7 @@ async def process_case_open(user_id, card, callback):
             photo=card.image_url,
             caption=caption,
             parse_mode="HTML",
-            reply_markup=back_to_cases_keyboard()
+            reply_markup=case_result_keyboard(case_type, price, is_daily)
         )
     else:
         await add_card_to_user(user_id, card.id)
@@ -30,5 +30,5 @@ async def process_case_open(user_id, card, callback):
             photo=card.image_url,
             caption=caption,
             parse_mode="HTML",
-            reply_markup=back_to_cases_keyboard()
+            reply_markup=case_result_keyboard(case_type, price, is_daily)
         )
